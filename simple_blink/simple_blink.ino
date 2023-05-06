@@ -1,5 +1,5 @@
 // Define the LED pin number as a constant
-#define LED_PIN  13
+#define LED_PIN  6
 
 void setup() {
   // Set the LED pin number as a constant
