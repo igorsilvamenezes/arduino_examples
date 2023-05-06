@@ -26,13 +26,31 @@ void setup() {
 }
 
 void loop() {
-  float temperature = readTemperature();
-  displayTemperature(temperature);
+  float nowTemperature = readTemperature();
+  float minTemperature = calcMinTemperature(nowTemperature);
+  float maxTemperature = calcMaxTemperature(nowTemperature);
+
+  String nowTemperatureStr = "Now: " + String(nowTemperature) + "C";
+  String minTemperatureStr = "Min: " + String(minTemperature) + "C";
+  String maxTemperatureStr = "Max: " + String(maxTemperature) + "C";
+  
+  String temperatureStr = "Temperature -> "
+                              + nowTemperatureStr + "    "
+                              + minTemperatureStr + "    "
+                              + maxTemperatureStr + "    ";
+
+  // Display the temperature on LCD module
+  lcd.setCursor(0, 0);
+  lcd.print(" -- Temperature: --");
+  lcd.setCursor(0, 1);
+  lcd.print(nowTemperatureStr);
+  lcd.setCursor(0, 2);
+  lcd.print(minTemperatureStr);
+  lcd.setCursor(0, 3);
+  lcd.print(maxTemperatureStr);
 
   // Print the Temperature to the serial monitor
-  Serial.print("Temperature: ");
-  Serial.print(temperature);
-  Serial.println("C");
+  Serial.println(temperatureStr);
 
   delay(1000);
 }
@@ -60,10 +78,22 @@ float readTemperature(){
   return temperature;
 }
 
-void displayTemperature(float temperature){
-  // Display the temperature on LCD module
-  lcd.setCursor(0, 0);
-  lcd.print("Temperature: ");
-  lcd.print(temperature);
-  lcd.print("C");
+float calcMinTemperature(float temperature){
+  static float minTemperature = 99;
+
+  if(temperature < minTemperature){
+    minTemperature = temperature;
+  }
+
+  return minTemperature;
+}
+
+float calcMaxTemperature(float temperature){
+  static float maxTemperature = 0;
+
+  if( temperature > maxTemperature){
+    maxTemperature = temperature;
+  }
+
+  return maxTemperature;
 }
