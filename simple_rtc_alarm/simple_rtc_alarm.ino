@@ -25,11 +25,11 @@
 #define NOTE_OK 1760
 
 // Define the initial alarm that the RTC module will be set
-#define START_ALARM1_HOUR 9
-#define START_ALARM1_MINUTE 0
+#define START_ALARM1_HOUR 20
+#define START_ALARM1_MINUTE 20
 #define START_ALARM1_STATUS true
-#define START_ALARM2_HOUR 9
-#define START_ALARM2_MINUTE 15
+#define START_ALARM2_HOUR 20
+#define START_ALARM2_MINUTE 21
 #define START_ALARM2_STATUS true
 
 // Initialize the LCD display object
@@ -37,6 +37,10 @@ LiquidCrystal_I2C lcd( LCD_ADDRESS, 20, 4);
 
 // Flag to keep track of alarm is playing
 volatile bool alarmPlaying = false;
+
+byte  controlReg, statusReg;
+
+unsigned long last_millis_time = 0;
 
 void setup() {
   // Open serial communications and wait for port to open
@@ -70,20 +74,22 @@ void setup() {
 }
 
 void loop() {
-  // Show the currente date and time every second
-  showDateTime();
-  showAlarms();
 
+  if (millis() - last_millis_time >= 1000) {
+    // Show the currente date and time every second
+    showDateTime();
+    showAlarms();
+
+    last_millis_time = millis();
+  }
+
+  // Check if the alarm is playing
   if( alarmPlaying ){
 
     // Check if the button reset is pressed
-    if( digitalRead(BUTTON_RETURN) ){
-      // Stop playing the alarm
-      alarmPlaying = false;
+    if( digitalRead(BUTTON_RETURN) ){      
 
-      // play two beep for confirmation
-      beep(NOTE_OK);
-      beep(NOTE_OK);
+      turnOffAlarm();
 
     } else {
       // Blink the LED
@@ -95,10 +101,6 @@ void loop() {
       beep(NOTE_ALARM);
       delay(100);
     }
-
-  } else {
-    digitalWrite(LED_PIN, LOW);
-    delay(1000);
   }
 }
 
@@ -177,47 +179,51 @@ void updateAlarms(){
   Wire.write(decToBcd(START_ALARM2_HOUR));    // Hour value for alarm2
   Wire.write(0x80);                           // Alarm2 mask, set to match hour and minute
   Wire.write(4 | START_ALARM1_STATUS | (START_ALARM2_STATUS << 1)); // Write data to DS3231 control register (enable interrupt when alarm)   
-  Wire.write(0x00);                           // Alarm1 day/date value, set to 0x00 for day of month match
-  Wire.endTransmission();
-  delay(200);
+  Wire.write(0x00);                           // Clear alarm flag bits
+  Wire.endTransmission();                     // Stop transmission and release the I2C bus
+  delay(200);                                 // Wait 200ms
 }
 
 void showAlarms(){
-  byte controlReg;
-  int minute1, hour1, minute2, hour2;
-  bool status1, status2;
+  byte  alarm1_minute, alarm1_hour, alarm2_minute, alarm2_hour;
+  bool alarm1_status, alarm2_status;
+  
   String alarm1Str;
   String alarm2Str;
+  String controlStr;
 
   Wire.beginTransmission(RTC_ADDRESS);
-  Wire.write(0x08); // Register address for alarm1 and alarm2 status (0x07)
+  Wire.write(0x08); // Send register address
   Wire.endTransmission(false);
-  Wire.requestFrom(RTC_ADDRESS, 7); // Request 2 bytes (alarm1 and alarm2 status)
+  Wire.requestFrom(RTC_ADDRESS, 8); // Request 2 bytes (alarm1 and alarm2 status)
 
   if( Wire.available() ){
-    minute1 = bcdToDec(Wire.read());    // Read alarm1 minutes
-    hour1 = bcdToDec(Wire.read());      // Read alarm1 hours
-    Wire.read();                        // Skip alarm1 day/date register
-    minute2 = bcdToDec(Wire.read());    // Read alarm2 minutes
-    hour2 = bcdToDec(Wire.read());      // Read alarm2 hours
-    Wire.read();                        // Skip alarm1 day/date register
+    alarm1_minute = bcdToDec(Wire.read());    // Read alarm1 minutes
+    alarm1_hour = bcdToDec(Wire.read());      // Read alarm1 hours
+    Wire.read();                              // Skip alarm1 day/date register
+    alarm2_minute = bcdToDec(Wire.read());    // Read alarm2 minutes
+    alarm2_hour = bcdToDec(Wire.read());      // Read alarm2 hours
+    Wire.read();                              // Skip alarm1 day/date register
 
     // Read the DS3231 control register
     controlReg = Wire.read();
+    controlStr = "ControlReg: " + String(controlReg, BIN);
+
+    statusReg = Wire.read();
 
     // Read alarms interrupt enable bit (A1IE) from DS3231 control register
-    status1 = bitRead(controlReg, 0);
-    status2 = bitRead(controlReg, 1);
+    alarm1_status = bitRead(controlReg, 0);
+    alarm2_status = bitRead(controlReg, 1);
 
     alarm1Str = "Alarm1: " 
-                    + String(hour1 < 10 ? "0" : "") + String(hour1, DEC) + ":" 
-                    + String(minute1 < 10 ? "0" : "") + String(minute1, DEC) + " " 
-                    + String(status1 ? "ON " : "OFF" );
+                    + String(alarm1_hour < 10 ? "0" : "") + String(alarm1_hour, DEC) + ":" 
+                    + String(alarm1_minute < 10 ? "0" : "") + String(alarm1_minute, DEC) + " " 
+                    + String(alarm1_status ? "ON " : "OFF" );
 
     alarm2Str = "Alarm2: " 
-                    + String(hour2 < 10 ? "0" : "") + String(hour2, DEC) + ":" 
-                    + String(minute2 < 10 ? "0" : "") + String(minute2, DEC) + " " 
-                    + String(status2 ? "ON " : "OFF" );
+                    + String(alarm2_hour < 10 ? "0" : "") + String(alarm2_hour, DEC) + ":" 
+                    + String(alarm2_minute < 10 ? "0" : "") + String(alarm2_minute, DEC) + " " 
+                    + String(alarm2_status ? "ON " : "OFF" );
 
     // Write the formatted alarms to the LCD display
     lcd.setCursor(0, 1);
@@ -227,18 +233,40 @@ void showAlarms(){
 
     // Print the formatted alarms to the serial monitor
     Serial.print(" " + alarm1Str);
-    Serial.println(" " + alarm2Str);
+    Serial.print(" " + alarm2Str);
+    Serial.println(" " + controlStr);    
   }
-}
-
-void turnOnAlarm(){
-  Serial.println("---- PLAYING ALARM ----");
-  // Set the alarme flag to true to start playing the buzzer
-  alarmPlaying = true;
 }
 
 void beep(unsigned int note) {
   tone(BUZZER_PIN, note, 100);
   delay(100);
   noTone(BUZZER_PIN);
+}
+
+void turnOnAlarm(){
+  Serial.println("---- PLAYING ALARM ----");
+  
+  // Set the alarme flag to true to start playing the buzzer
+  alarmPlaying = true;
+}
+
+void turnOffAlarm(){
+  // Set the alarme flag to false to stop playing the buzzer
+  alarmPlaying = false;
+
+  // play two beep for confirmation
+  beep(NOTE_OK);
+  beep(NOTE_OK);
+
+  Wire.beginTransmission(RTC_ADDRESS);
+  Wire.write(0x0E);
+  Wire.write( 4 | 
+                ( (bitRead(controlReg, 1) & !bitRead(statusReg, 1)) << 1) |
+                  (bitRead(controlReg, 0) & !bitRead(statusReg, 0)) );
+
+  Wire.write(0);            // Clear alarm flag bits
+  Wire.endTransmission();   // Stop transmission and release the I2C bus
+
+  digitalWrite(LED_PIN, LOW);
 }
