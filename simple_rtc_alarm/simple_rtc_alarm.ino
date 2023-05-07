@@ -25,10 +25,10 @@
 #define NOTE_OK 1760
 
 // Define the initial alarm that the RTC module will be set
-#define START_ALARM1_HOUR 09
-#define START_ALARM1_MINUTE 00
+#define START_ALARM1_HOUR 9
+#define START_ALARM1_MINUTE 0
 #define START_ALARM1_STATUS true
-#define START_ALARM2_HOUR 09
+#define START_ALARM2_HOUR 9
 #define START_ALARM2_MINUTE 15
 #define START_ALARM2_STATUS true
 
@@ -169,15 +169,15 @@ int decToBcd(int val) {
 void updateAlarms(){
   Wire.beginTransmission(RTC_ADDRESS);
   Wire.write(0x07);  
-  Wire.write(0); // Second value for alarm1
-  Wire.write(decToBcd(START_ALARM1_MINUTE)); // Minute value for alarm1
-  Wire.write(decToBcd(START_ALARM1_HOUR)); // Hour value for alarm1
-  Wire.write(0x80); // Alarm1 mask, set to match hour and minute
-  Wire.write(decToBcd(START_ALARM2_MINUTE)); // Minute value for alarm2
-  Wire.write(decToBcd(START_ALARM2_HOUR)); // Hour value for alarm2
-  Wire.write(0x80); // Alarm2 mask, set to match hour and minute
+  Wire.write(0);                              // Second value for alarm1
+  Wire.write(decToBcd(START_ALARM1_MINUTE));  // Minute value for alarm1
+  Wire.write(decToBcd(START_ALARM1_HOUR));    // Hour value for alarm1
+  Wire.write(0x80);                           // Alarm1 mask, set to match hour and minute
+  Wire.write(decToBcd(START_ALARM2_MINUTE));  // Minute value for alarm2
+  Wire.write(decToBcd(START_ALARM2_HOUR));    // Hour value for alarm2
+  Wire.write(0x80);                           // Alarm2 mask, set to match hour and minute
   Wire.write(4 | START_ALARM1_STATUS | (START_ALARM2_STATUS << 1)); // Write data to DS3231 control register (enable interrupt when alarm)   
-  Wire.write(0x00); // Alarm1 day/date value, set to 0x00 for day of month match
+  Wire.write(0x00);                           // Alarm1 day/date value, set to 0x00 for day of month match
   Wire.endTransmission();
   delay(200);
 }
