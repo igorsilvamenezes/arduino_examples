@@ -5,11 +5,18 @@
 #define BUTTON_ENTER_PIN 15
 #define BUTTON_INCREMENT_PIN 14
 
+// Pin number for the buzzer
+#define BUZZER_PIN 6
+
 // Define the default values
 #define SIZE_FIELDS 4
 #define MIN_VALUE_FIELD 0
 #define MAX_VALUE_FIELD 50
 #define FIELD_NOT_SELECTED -1
+
+// Define the frequency of Notes
+#define NOTE_FIELD 1760
+#define NOTE_VALUE 1500
 
 // Initialize the LCD display object
 LiquidCrystal_I2C lcd(0x27, 20, 4);
@@ -35,12 +42,24 @@ void setup() {
 
 void loop() {
   // Check if the enter button is pressed
-  if (digitalRead(BUTTON_ENTER_PIN)) {
+  if (digitalRead(BUTTON_ENTER_PIN)) {    
+
+    // Check if the change of values has started
+    if(selectedField == FIELD_NOT_SELECTED ){
+      beep(NOTE_FIELD);
+      beep(NOTE_FIELD);
+    } else {
+      beep(NOTE_FIELD);
+    }
 
     // Increment the selected field
     selectedField++;
     if(selectedField > (SIZE_FIELDS -1) ){      
       selectedField = FIELD_NOT_SELECTED; // Reset the selected field
+      
+      beep(NOTE_FIELD);
+      beep(NOTE_FIELD);
+      beep(NOTE_FIELD);
     }
 
     // Display the fields and theis values
@@ -60,6 +79,7 @@ void loop() {
 
       // While the increment button is pressed
       while (digitalRead(BUTTON_INCREMENT_PIN)) {
+        beep(NOTE_VALUE);
 
         // Increment the value of field
         // set minimum value if it exceeds the maximum value
@@ -110,4 +130,10 @@ void blinkSelectedValue() {
   } else {
     lcd.print(values[selectedField]);
   }
+}
+
+void beep(unsigned int note) {
+  tone(BUZZER_PIN, note, 100);
+  delay(150);
+  noTone(BUZZER_PIN);
 }
