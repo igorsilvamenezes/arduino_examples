@@ -13,10 +13,10 @@
 // Define the initial date and time that the RTC module will be set
 // to when the system is restarted with the enter button pressed
 #define START_SECOND 00
-#define START_MINUTE 56
-#define START_HOUR 21
-#define START_DAY 01
-#define START_DAY_OF_WEEK 01
+#define START_MINUTE 19
+#define START_HOUR 20
+#define START_WEEK 02
+#define START_DAY 15
 #define START_MONTH 05
 #define START_YEAR 23
 
@@ -65,8 +65,8 @@ void updateDateTime() {
   Wire.write(decToBcd(START_SECOND));
   Wire.write(decToBcd(START_MINUTE));
   Wire.write(decToBcd(START_HOUR));
+  Wire.write(decToBcd(START_WEEK));
   Wire.write(decToBcd(START_DAY));
-  Wire.write(decToBcd(START_DAY_OF_WEEK));
   Wire.write(decToBcd(START_MONTH));
   Wire.write(decToBcd(START_YEAR));
 
@@ -75,9 +75,9 @@ void updateDateTime() {
 }
 
 void showDateTime(){
-  int second, minute, hour, day, dayOfWeek, month, year;
-  String dateString;
-  String timeString;
+  int second, minute, hour, day, week, month, year;
+  String dateStr;
+  String timeStr;
 
   // Request the date and time from the RCT module
   Wire.beginTransmission(RTC_ADDRESS);
@@ -89,82 +89,73 @@ void showDateTime(){
   second = bcdToDec(Wire.read() & 0x7F);
   minute = bcdToDec(Wire.read());
   hour = bcdToDec(Wire.read() & 0x3F);
+  week = bcdToDec(Wire.read());
   day = bcdToDec(Wire.read());
-  dayOfWeek = bcdToDec(Wire.read());
   month = bcdToDec(Wire.read());
   year = bcdToDec(Wire.read());
 
   // Format the date and time as a string
-  dateString = dateToString(day, dayOfWeek, month, year);
-  timeString = timeToString(hour, minute, second);
+  dateStr = dateToStr(day, week, month, year);
+  timeStr = timeToStr(hour, minute, second);
 
   // Write the formatted date to the LCD display
   lcd.setCursor(0, 0);
-  lcd.print(dateString);
+  lcd.print(dateStr);
 
   // Write the formatted time to the LCD display
   lcd.setCursor(0, 1);
-  lcd.print(timeString);
+  lcd.print(timeStr);
 
   // Print the formatted date and time to the serial monitor
-  Serial.print(dateString);
+  Serial.print(dateStr);
   Serial.print(" ");
-  Serial.println(timeString);
+  Serial.println(timeStr);
 }
 
-String dateToString(int day, int week, int month, int year){
-  String dayOfWeekString;
-  String dateString;
+String dateToStr(int day, int week, int month, int year){
+  String weekStr;
+  String dateStr;
 
-  dayOfWeekString = dayOfWeekToString(week);
+  weekStr = weekToStr(week);
   
   // Format the date as a string
-  dateString = String(day < 10 ? "0" : "") + String(day, DEC) + "/" 
-                          + String(month < 10 ? "0" : "") + String(month, DEC) + "/" 
-                          + String(year < 10 ? "0" : "") + String(year, DEC)
-                          + dayOfWeekString;
+  dateStr = String(day < 10 ? "0" : "") + String(day, DEC) 
+               + "/" 
+               + String(month < 10 ? "0" : "") + String(month, DEC) 
+               + "/"
+               + String(year < 10 ? "0" : "") + String(year, DEC)
+               + weekStr;
 
-  return dateString;
+  return dateStr;
 }
 
-String timeToString(int hour, int minute, int second){
-  String timeString;
+String timeToStr(int hour, int minute, int second){
+  String timeStr;
  
   // Format the time as a string
-  timeString = String(hour < 10 ? "0" : "") + String(hour, DEC) + ":" 
-                          + String(minute < 10 ? "0" : "") + String(minute, DEC) + ":" 
-                          + String(second < 10 ? "0" : "") + String(second, DEC);
+  timeStr = String(hour < 10 ? "0" : "") + String(hour, DEC)
+            + ":"
+            + String(minute < 10 ? "0" : "") + String(minute, DEC) 
+            + ":"
+            + String(second < 10 ? "0" : "") + String(second, DEC);
 
-  return timeString;
+  return timeStr;
 }
 
-String dayOfWeekToString(int week){
-  String dayOfWeekString;
+String weekToStr(int week){
+  String weekStr;
 
   switch(week) {
-    case 0:
-      dayOfWeekString = " Sun";
-      break;
-    case 1:
-      dayOfWeekString = " Mon";
-      break;
-    case 2:
-      dayOfWeekString = " Tue";
-      break;
-    case 3:
-      dayOfWeekString = " Wed";
-      break;
-    case 4:
-      dayOfWeekString = " Thur";
-      break;
-    case 5:
-      dayOfWeekString = " Fri";
-      break;
-    case 6:
-      dayOfWeekString = " Sat";
+    case 0: weekStr = " Su"; break;
+    case 1: weekStr = " Mo"; break;
+    case 2: weekStr = " Tu"; break;
+    case 3: weekStr = " We"; break;
+    case 4: weekStr = " Th";break;
+    case 5: weekStr = " Fr"; break;
+    case 6: weekStr = " Sa";
   }
 
-  return dayOfWeekString;
+  return weekStr;
 }
 
 // Function to convert binary-coded decimal (BCD) to decimal
