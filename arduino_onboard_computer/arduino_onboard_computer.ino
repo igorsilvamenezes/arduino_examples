@@ -52,27 +52,41 @@ void loop() {
 
   if( (currentTime - previousTime_datetime) >= EVENT_TIME_SHOW_DATE_TIME) {
 
-    if(currentState == IDLE){
+    if(currentState != EDIT_DATETIME){
       readDateTime(&currentDatetime);
-      //currentDatetime = getDatetime();
       showDateTime(&currentDatetime);
     }
 
     previousTime_datetime = currentTime;
+    showSystemState();
   }
 
   if( (currentTime - previousTime_temperature) >= EVENT_TIME_SHOW_TEMPERATURE){
     currentTemperature = readTemperature();
+    //float minTemp = calcMinTemperature(currentTemperature);
+    //float maxTemp = calcMaxTemperature(currentTemperature);
+
     showTemperature(currentTemperature);
+    //showTemperature(currentTemperature, minTemp, maxTemp);
+    previousTime_temperature = currentTime;
   }
 
   if( (currentTime - previousTime_alarms) >= EVENT_TIME_SHOW_ALARMS){
-     readAlarms(&currentAlarms);
-     showAlarms(&currentAlarms);
+
+    if(currentState != EDIT_ALARMS){
+      readAlarms(&currentAlarms);
+      showAlarms(&currentAlarms);
+    }
+
+    previousTime_alarms = currentTime;
   }
 
   handleButtons();
   blinkSelectedValue();
+}
+
+void changeState(){
+  currentState = static_cast<SystemState>((currentState + 1) % NUM_SYSTEM_STATES);
 }
 
 void enterEditing(){
@@ -84,7 +98,7 @@ void enterEditing(){
     beep(NOTE_FIELD);
     beep(NOTE_FIELD);
 
-  } else if(currentState == EDIT_DATETIME){
+  } else if(currentState == EDIT_DATETIME || currentState == EDIT_ALARMS){
     saveEditing();
     beep(NOTE_FIELD);
     beep(NOTE_FIELD);
@@ -93,11 +107,19 @@ void enterEditing(){
 }
 
 void selectNextField(){
-  if(currentState == EDIT_DATETIME && currentIndex < NUM_FIELDS -1){
+  if( (currentState == EDIT_DATETIME || currentState == EDIT_ALARMS ) 
+    && currentIndex < NUM_FIELDS -1){
+
     beep(NOTE_FIELD);
     currentIndex++;
-    selectedField = &fields[currentIndex];    
-    showDateTime(&currentDatetime);
+    selectedField = &fields[currentIndex];
+
+    if(currentIndex >= 7){
+      currentState = EDIT_ALARMS;
+    }
+    
+    //Show the previous field
+    showSelectedValue(&fields[currentIndex -1]);
 
   } else {
     beep(NOTE_ERROR);
@@ -105,14 +127,21 @@ void selectNextField(){
   }
 }
 
-void selectPreviousField(){
-    
-  if(currentState == EDIT_DATETIME && currentIndex > 0){
+void selectPreviousField(){    
+  if( (currentState == EDIT_DATETIME || currentState == EDIT_ALARMS)
+    && currentIndex > 0){
+
     beep(NOTE_FIELD);
     currentIndex--;
     selectedField = &fields[currentIndex];
     currentState == EDIT_DATETIME;
-    showDateTime(&currentDatetime);
+
+    if(currentIndex < 7){
+      currentState = EDIT_DATETIME;
+    }
+    
+    //Show the previous field
+    showSelectedValue(&fields[currentIndex + 1]);
 
   } else {
     beep(NOTE_ERROR);
@@ -128,6 +157,13 @@ void saveEditing(){
     
     datetime_t datetime = decodeDate();
     updateDatetime(&datetime);
+  } else if(currentState == EDIT_ALARMS){
+    selectedField = NULL;
+    currentState = IDLE;
+    currentIndex = -1;
+    
+    alarm_t alarms = decodeAlarms();
+    updateAlarms(&alarms);
   } else {
     beep(NOTE_ERROR);
     beep(NOTE_ERROR);
@@ -135,13 +171,17 @@ void saveEditing(){
 }
 
 void cancelEditing(){
-  if(currentState == EDIT_DATETIME){
+  if(currentState == EDIT_DATETIME || currentState == EDIT_ALARMS){
     selectedField = NULL;
     currentState = IDLE;
     currentIndex = -1;
     
     readDateTime(&currentDatetime);
     showDateTime(&currentDatetime);
+
+    readAlarms(&currentAlarms);
+    showAlarms(&currentAlarms);
+
 
     beep(NOTE_FIELD);
     beep(NOTE_FIELD);
@@ -154,12 +194,14 @@ void cancelEditing(){
 void incrementFieldValue(){
   int tempValue = 0;
 
-  if(currentState == EDIT_DATETIME && selectedField != NULL){
+  if( (currentState == EDIT_DATETIME || currentState == EDIT_ALARMS) 
+    && selectedField != NULL){
+    
     tempValue = selectedField->value.toInt();
 
     if(tempValue < selectedField->maximum){
       selectedField->value = ++tempValue;
-      showDateTime(&currentDatetime);
+      //showDateTime(&currentDatetime);
       beep(NOTE_VALUE);
     } else {
       beep(NOTE_ERROR);
@@ -173,12 +215,14 @@ void incrementFieldValue(){
 void decrementFieldValue(){
   int tempValue = 0;
 
-  if(currentState == EDIT_DATETIME && selectedField != NULL){
+  if( (currentState == EDIT_DATETIME || currentState == EDIT_ALARMS) 
+    && selectedField != NULL){
+
     tempValue = selectedField->value.toInt();
 
     if(tempValue > selectedField->mininum){
       selectedField->value = --tempValue;
-      showDateTime(&currentDatetime);
+      //showDateTime(&currentDatetime);
       beep(NOTE_VALUE);
     } else {
       beep(NOTE_ERROR);
